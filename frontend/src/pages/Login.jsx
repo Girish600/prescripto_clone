@@ -72,6 +72,7 @@ const Login = () => {
         <p>Already have an account? <span className='text-primary cursor-pointer underline' onClick={()=>setState('Login')}>Login here</span></p>
         : <p>Create an new account? <span className='text-primary cursor-pointer underline' onClick={()=>setState('sign-up')}>Click here</span></p>
       }
+      <p>For Admin or Doctor's login ? <a href='http://43.204.96.141:4173/' className='text-primary cursor-pointer underline'>Click here</a></p>
     </div>
     </form>
   )
