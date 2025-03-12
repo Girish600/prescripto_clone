@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { v2 as cloudinary } from "cloudinary";
 import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
-import razorpay from "razorpay";
+import Razorpay from "razorpay";
 
 // register
 
@@ -272,7 +272,7 @@ const cancelAppointment = async (req, res) => {
 
 // API to make payment through razorpay
 
-const razorpayInstance = new razorpay({
+const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
@@ -308,25 +308,67 @@ const paymentRazorpay = async (req, res) => {
 
 // API for verify payment of razorpay
 
-const verifyRazorpay= async(req, res)=>{
-  try {
-    const {razorpay_order_id}= req.body;
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+// const verifyRazorpay= async(req, res)=>{
+//   try {
+//     const {razorpay_order_id}= req.body;
+//     const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
 
-    console.log(orderInfo)
-    if (orderInfo.status === 'paid') {
-      await appointmentModel.findByIdAndUpdate(orderInfo.receipt, {payment:true})
-      res.send({success:true, message:'payment successful'})
-    }else{
-      res.send({success:false,message:'payment failed'})
+//     console.log(orderInfo)
+//     if (orderInfo.status === 'paid') {
+//       await appointmentModel.findByIdAndUpdate(orderInfo.receipt, {payment:true})
+//       res.send({success:true, message:'payment successful'})
+//     }else{
+//       res.send({success:false,message:'payment failed'})
+//     }
+
+
+//   } catch (error) {
+//     console.log(error);
+//     res.send({success:false,message:error.message})
+//   }
+// }
+
+const verifyRazorpay = async (req, res) => {
+  try {
+    console.log("Received Razorpay verification request:", req.body); // Log request
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error("Missing parameters:", { razorpay_order_id, razorpay_payment_id, razorpay_signature });
+      return res.status(400).send({ success: false, message: "Missing payment details" });
     }
 
+    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+    console.log("Fetched order info:", orderInfo); // Log order info
 
+    if (!orderInfo) {
+      console.error("Invalid Order ID:", razorpay_order_id);
+      return res.status(400).send({ success: false, message: "Invalid Order ID" });
+    }
+
+    const crypto = require("crypto");
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generatedSignature = hmac.digest("hex");
+
+    console.log("Generated Signature:", generatedSignature);
+    console.log("Received Signature:", razorpay_signature);
+
+    if (generatedSignature === razorpay_signature) {
+      await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: true });
+      console.log("Payment verified successfully!");
+      return res.send({ success: true, message: "Payment verified successfully" });
+    } else {
+      console.error("Signature mismatch. Possible fraud attempt.");
+      return res.status(400).send({ success: false, message: "Payment verification failed" });
+    }
   } catch (error) {
-    console.log(error);
-    res.send({success:false,message:error.message})
+    console.error("Error in verifyRazorpay:", error);
+    res.status(500).send({ success: false, message: error.message });
   }
-}
+};
+
 
 export {
   registerUser,
