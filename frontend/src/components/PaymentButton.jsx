@@ -2,20 +2,25 @@ import React, { useState, useEffect } from "react";
 
 const PaymentButton = ({ appointmentId }) => {
   const [amount, setAmount] = useState(null);
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("token"); // Retrieve token from localStorage
 
   useEffect(() => {
     // Fetch appointment details from the backend
     const fetchAppointmentDetails = async () => {
       try {
-        const response = await fetch("http://localhost:5000/create-order", {
+        const response = await fetch(`${backendUrl}/payment-razorpay`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ appointmentId }),
         });
 
         const data = await response.json();
         if (data.success) {
-          setAmount(data.amount);
+          setAmount(data.order.amount / 100); // Convert from paisa to INR
         } else {
           alert(data.message);
         }
@@ -25,7 +30,7 @@ const PaymentButton = ({ appointmentId }) => {
     };
 
     fetchAppointmentDetails();
-  }, [appointmentId]);
+  }, [appointmentId, backendUrl, token]);
 
   const handlePayment = async () => {
     try {
@@ -35,9 +40,12 @@ const PaymentButton = ({ appointmentId }) => {
       }
 
       // Get Order ID from backend
-      const orderResponse = await fetch("http://localhost:5000/create-order", {
+      const orderResponse = await fetch(`${backendUrl}/payment-razorpay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ appointmentId }),
       });
 
@@ -50,16 +58,19 @@ const PaymentButton = ({ appointmentId }) => {
       // Open Razorpay Checkout
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderData.amount * 100, // Convert to paisa
+        amount: orderData.order.amount, // Already in paisa
         currency: "INR",
         name: "Acme Corp",
         description: "Payment for appointment",
         image: "https://example.com/your_logo.jpg",
         order_id: orderData.order.id,
         handler: async function (response) {
-          const verifyResponse = await fetch("http://localhost:5000/verify-payment", {
+          const verifyResponse = await fetch(`${backendUrl}/verify-razorpay`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify(response),
           });
 

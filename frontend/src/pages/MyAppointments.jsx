@@ -51,37 +51,81 @@ function MyAppointments() {
     }
   }
 
-  const intiPay= (order)=>{
+  // const intiPay= (order)=>{
 
-    const options= {
+  //   const options= {
+  //     key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+  //     amount: order.amount,
+  //     currency:order.currency,
+  //     name:'Appointment Payment',
+  //     description: 'Appointment Payment',
+  //     order_id:order.id,
+  //     receipt: order.receipt,
+  //     handler:async(response)=>{
+  //       console.log(response)
+  //       try {
+          
+  //         const {data}= await axios.post(backendUrl + '/user/verify-razorpay', response, {headers:{Authorization:`Bearer ${token}`}})
+  //         if (data.success) {
+  //           getUserAppointments()
+  //           navigate('/my-appointments')
+  //         }
+
+  //       } catch (error) {
+  //         console.log(error);
+  //         toast.error(error.message)
+  //       }
+  //     }
+  //   }
+
+  //   const rzp= new window.Razorpay(options)
+  //   rzp.open()
+
+  // }
+
+  const intiPay = (order) => {
+    const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
       amount: order.amount,
-      currency:order.currency,
-      name:'Appointment Payment',
-      description: 'Appointment Payment',
-      order_id:order.id,
+      currency: order.currency,
+      name: "Appointment Payment",
+      description: "Appointment Payment",
+      order_id: order.id,
       receipt: order.receipt,
-      handler:async(response)=>{
-        console.log(response)
-        try {
-          
-          const {data}= await axios.post(backendUrl + '/user/verify-razorpay', response, {headers:{Authorization:`Bearer ${token}`}})
-          if (data.success) {
-            getUserAppointments()
-            navigate('/my-appointments')
-          }
-
-        } catch (error) {
-          console.log(error);
-          toast.error(error.message)
-        }
-      }
-    }
-
-    const rzp= new window.Razorpay(options)
-    rzp.open()
-
-  }
+      handler: function (response) {
+        console.log("Razorpay Response:", response);
+        axios
+          .post(
+            `${backendUrl}/user/verify-razorpay`,
+            {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          )
+          .then(({ data }) => {
+            console.log("Payment Verification Success:", data);
+            toast.success("Payment verified successfully!");
+            getUserAppointments();
+            navigate("/my-appointments");
+          })
+          .catch((error) => {
+            console.error("Payment Verification Failed:", error);
+            toast.error(error.response?.data?.message || "Payment verification failed.");
+          });
+      },
+      theme: {
+        color: "#3399cc",
+      },
+    };
+  
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
+  
 
   const appointmentRazorpay= async(appointmentId)=>{
 
